@@ -93,62 +93,29 @@ class TrieNode {
   }
 }
 
-class Trie {
+
+class TrieRouter {
   constructor() {
-    this.root = new TrieNode();
-  }
-  // t inserts word to trie
-  insert(wordToInsert, node = this.root) {
-    let word = wordToInsert.length;
-    if (word === 0) return;
-
-    for (let char of wordToInsert) {
-      // If the current character is not found in the children map
-      if (!node.children.has(char)) {
-        // Create a new TrieNode and add it to the map
-        node.children.set(char, new TrieNode());
-      }
-      // Move to the next node
-      node = node.children.get(char);
-    }
-    // Mark the end of the word
-    node.isEndOfWord = true;
+    this.root = new TrieNode()
   }
 
-  search(wordToSearch, node = this.root) {
-    if (wordToSearch === undefined || wordToSearch === null) {
-      return false;
-    }
-
-    if (wordToSearch.length === 0) {
-      return node.isEndOfWord;
-    }
-
-    for (let char of wordToSearch) {
-      if (!node.children.has(char)) {
-        return false;
-      }
-      node = node.children.get(char);
-    }
-    return node.isEndOfWord;
-  }
+  addRoute() {}
 }
 
-const trie = new Trie();
-trie.insert("code");
-trie.insert("coding");
 
-let found = trie.search("code");
-console.log(found); // true
+class RouteNode {
+constructor() {
+  this.childrenNodes = new Map(),
+  this.handler = null
+}
 
-found = trie.search("cod");
-console.log(found); // false
+handleRoute() {
+  // This method will be used to handle the route when this node is the end of a path.
+  // You can call the handler function here if it exists.
+}
+}
 
-console.dir(trie.root, {
-  depth: null,
-  colors: true,
-  showHidden: true,
-});
+
 const router = new Router();
 
 router.get("/", function handleGetBasePath(req, res) {
