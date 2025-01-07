@@ -1,21 +1,19 @@
-// Get the `Router` and `run` function from our library
-const { Router, run } = require("./lib");
+const { Router, run } = require('./lib');
 
-// Create a new instance of the `Router` class
 const router = new Router();
 
-// Define the routes
-router.get("/", (req, res) => {
-  res.end("Hello from the root endpoint");
+router.get('/', (req, res) => {
+  res.end('Hello from the root endpoint');
 });
 
-router.get("/user/:name", (req, res) => {
+router.get('/user/:name', (req, res) => {
+  console.log(req.name)  //
   res.end(`Hello, ${req.params.name}!`);
 });
 
-router.get("/user/:age/class/:subject", (req, res) => {
+router.get('/user/:age/class/:subject', (req, res) => {
+  console.log(req.params)  // Should now correctly show { age: '21', subject: 'Mathematics' }
   res.end(`You're ${req.params.age} years old, and you're studying ${req.params.subject}.`);
 });
 
-// Start the server at port 3000
 run(router, 3000);
