@@ -1,45 +1,107 @@
 const { Router, run } = require("./lib");
 
 const router = new Router();
-router.get("/users/:id", (req, res) => {
-  console.log(req.params.id);
-  console.log(req.query);
-});
 
-router.get("/users/:id/posts/:postId", (req, res) => {
-  console.log(req.params.id);
-  console.log(req.params.postId);
-  console.log(req.query);
-});
+// Helper functions for route handlers
+function getUserList(req, res) {
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ users: ["Ishtmeet", "Jon"] }));
+}
 
-// Test Cases
-const testCases = [
-  { path: "/users", method: "GET", description: "Basic Route Matching" },
-  { path: "/users/123", method: "GET", description: "Dynamic Parameters" },
-  { path: "/users/123?name=Velocy&age=1", method: "GET", description: "Query String Parsing" },
-  { path: "/users/123?name=John%20Doe&city=New%20York", method: "GET", description: "URL-Encoded Query Parameters" },
-  { path: "/users/123?name=Velocy&name=John", method: "GET", description: "Duplicate Query Parameters" },
-  { path: "/users/123?name=&age=1", method: "GET", description: "Empty Query Parameter Values" },
-  { path: "/users/123?name&age=1", method: "GET", description: "Missing Query Parameter Values" },
-  { path: "/users/123?search=hello%20world%21", method: "GET", description: "Special Characters in Query Parameters" },
-  { path: "/invalid/path", method: "GET", description: "Invalid Path" },
-  { path: "/users/123", method: "INVALID_METHOD", description: "Invalid HTTP Method" },
-  { path: "users/123", method: "GET", description: "Malformed Path" },
-  { path: "/users/123/posts/456", method: "GET", description: "Multiple Dynamic Parameters" },
-  { path: "/users/123", method: "GET", description: "No Query String" },
-  { path: "/users/123?", method: "GET", description: "Empty Query String" },
-  { path: "/users/123/posts/456?name=Velocy&age=1", method: "GET", description: "Mixed Dynamic Parameters and Query Strings" },
+function showUserInfo(req, res) {
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ user: req.params.id }));
+}
+
+function teamsList(req, res) {
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ teams: ["Team Red", "Team Blue"] }));
+}
+
+function rootHandler(req, res) {
+  res.writeHead(200, { "Content-Type": "text/plain" });
+  res.end("Hello World");
+}
+
+// Define individual routers
+const base_routes = new Router().get("/", rootHandler);
+const user_routes = new Router().get("/users", getUserList).get("/users/:id", showUserInfo);
+const team_routes = new Router().get("/teams", teamsList);
+
+// Merge routers into the main router
+const main_router = new Router();
+main_router.merge(user_routes);
+main_router.merge(team_routes);
+main_router.merge(base_routes);
+
+// Nest the main router under "/api/v1"
+const api_router = new Router();
+api_router.nest("/api/v1", main_router);
+
+// Test cases for non-nested routes (main_router)
+const nonNestedTestCases = [
+  { path: "/", method: "GET", description: "Root Route" },
+  { path: "/users", method: "GET", description: "User List" },
+  { path: "/users/123", method: "GET", description: "User Info" },
+  { path: "/teams", method: "GET", description: "Team List" },
+  { path: "/invalid", method: "GET", description: "Invalid Route" },
+  {
+    path: "/users/123?name=Velocy&age=1",
+    method: "GET",
+    description: "Query String Parsing",
+  },
 ];
 
-testCases.forEach(({ path, method, description }) => {
+// Test cases for nested routes (api_router)
+const nestedTestCases = [
+  { path: "/api/v1/", method: "GET", description: "Nested Root Route" },
+  { path: "/api/v1/users", method: "GET", description: "Nested User List" },
+  {
+    path: "/api/v1/users/123",
+    method: "GET",
+    description: "Nested User Info",
+  },
+  { path: "/api/v1/teams", method: "GET", description: "Nested Team List" },
+  {
+    path: "/api/v1/invalid",
+    method: "GET",
+    description: "Nested Invalid Route",
+  },
+];
+
+// Run non-nested test cases
+console.log("Running Non-Nested Test Cases:");
+nonNestedTestCases.forEach(({ path, method, description }) => {
   console.log(`Running Test: ${description}`);
   try {
-    const result = router.findRoute(path, method);
-    console.log(result);
+    const result = main_router.findRoute(path, method);
+    if (result && result.handler) {
+      console.log("Route found:", result);
+    } else {
+      console.log("Route not found.");
+    }
   } catch (error) {
     console.error(error.message);
   }
   console.log("-----------------------------");
 });
 
-run(router, 3000);
+// Run nested test cases
+console.log("Running Nested Test Cases:");
+nestedTestCases.forEach(({ path, method, description }) => {
+  console.log(`Running Test: ${description}`);
+  try {
+    const result = api_router.findRoute(path, method);
+    if (result && result.handler) {
+      console.log("Route found:", result);
+    } else {
+      console.log("Route not found.");
+    }
+  } catch (error) {
+    console.error(error.message);
+  }
+  console.log("-----------------------------");
+});
+
+// Start the server with the nested router
+run(api_router, 3000);
