@@ -1,8 +1,7 @@
 const http = require("node:http");
 
-const PORT = 5255;
+const PORT = 8000;
 
-//Instead of using a switch statement, we can use an object to store the HTTP methods
 const HTTP_METHODS = {
   GET: "GET",
   POST: "POST",
@@ -15,118 +14,144 @@ const HTTP_METHODS = {
   TRACE: "TRACE",
 };
 
-class Router {
+class RouteNode {
   constructor() {
-    this.routes = {};
-  }
-
-  // We can use a private method to add routes to the router
-  #addRoute(method, path, handler) {
-    //We can use the typeof operator to check if the path is a string and the handler is a function
-    if (typeof path !== "string" || typeof handler !== "function") {
-      throw new Error("Invalid argument types: path must be a string and handler must be a function");
-    }
-    //We can use template literals to store the route in the routes object
-    this.routes[`${method} ${path}`] = handler;
-  }
-
-  handleRequest(request, response) {
-    const { url, method } = request;
-    const handler = this.routes[`${method} ${url}`];
-
-    if (!handler) {
-      return console.log("404 Not found");
-    }
-
-    handler(request, response);
-  }
-
-  get(path, handler) {
-    this.#addRoute(HTTP_METHODS.GET, path, handler);
-  }
-
-  post(path, handler) {
-    this.#addRoute(HTTP_METHODS.POST, path, handler);
-  }
-
-  put(path, handler) {
-    this.#addRoute(HTTP_METHODS.PUT, path, handler);
-  }
-
-  delete(path, handler) {
-    this.#addRoute(HTTP_METHODS.DELETE, path, handler);
-  }
-
-  patch(path, handler) {
-    this.#addRoute(HTTP_METHODS.PATCH, path, handler);
-  }
-
-  head(path, handler) {
-    this.#addRoute(HTTP_METHODS.HEAD, path, handler);
-  }
-
-  options(path, handler) {
-    this.#addRoute(HTTP_METHODS.OPTIONS, path, handler);
-  }
-
-  connect(path, handler) {
-    this.#addRoute(HTTP_METHODS.CONNECT, path, handler);
-  }
-
-  trace(path, handler) {
-    this.#addRoute(HTTP_METHODS.TRACE, path, handler);
-  }
-
-  printRoutes() {
-    console.log(Object.entries(this.routes));
+    this.children = {}; // Stores child nodes
+    this.handlers = {}; // Handlers for this node
+    this.paramName = null; // Name of the dynamic parameter
   }
 }
-
-class TrieNode {
-  constructor() {
-    this.children = new Map();
-    this.isEndOfWord = false;
-  }
-
-  displayTrie() {
-    console.log(this.children);
-  }
-}
-
 
 class TrieRouter {
   constructor() {
-    this.root = new TrieNode()
+    this.root = new RouteNode();
+    // Dynamically add HTTP method-specific functions
+    Object.keys(HTTP_METHODS).forEach(methodKey => {
+      const httpMethod = HTTP_METHODS[methodKey];
+      TrieRouter.prototype[httpMethod.toLowerCase()] = function(path, handler) {
+        this.#addRoute(path, httpMethod, handler);
+      };
+    });
   }
 
-  addRoute() {}
+  // Private method to verify inputs for addRoute
+  #verifyInputs(path, handler, method) {
+    if (typeof path !== 'string' || path[0] !== '/') {
+      throw new Error('Malformed path provided.');
+    }
+    if (typeof handler !== 'function') {
+      throw new Error('Handler should be a function.');
+    }
+    if (!Object.values(HTTP_METHODS).includes(method)) {
+      throw new Error('Invalid HTTP method provided.');
+    }
+  }
+
+  // Private method to verify path and method for findRoute
+  #verifyPathAndMethod(path, method) {
+    if (typeof path !== 'string' || path[0] !== '/') {
+      throw new Error('Malformed path provided.');
+    }
+    if (!Object.values(HTTP_METHODS).includes(method)) {
+      throw new Error('Invalid HTTP method provided.');
+    }
+  }
+
+  // Private method to add a route to the Trie
+  #addRoute(path, method, handler) {
+    this.#verifyInputs(path, handler, method);
+
+    const segments = path.split('/').filter(segment => segment !== '');
+    let currentNode = this.root;
+
+    for (const segment of segments) {
+      let nodeKey = segment;
+      let newNode;
+
+      if (segment.startsWith(':')) {
+        // Dynamic parameter
+        nodeKey = '*';
+        newNode = new RouteNode();
+        newNode.paramName = segment.slice(1); // Remove the colon
+      } else {
+        newNode = new RouteNode();
+      }
+
+      if (!currentNode.children.hasOwnProperty(nodeKey)) {
+        currentNode.children[nodeKey] = newNode;
+      }
+      currentNode = currentNode.children[nodeKey];
+    }
+
+    // Assign handler for the specific HTTP method
+    currentNode.handlers[method] = handler;
+  }
+
+  // Find the route handler and parameters for a given path and method
+  findRoute(path, method) {
+    this.#verifyPathAndMethod(path, method);
+
+    const segments = path.split('/').filter(Boolean);
+    let currentNode = this.root;
+    const params = {};
+
+    for (const segment of segments) {
+      // Try exact match first
+      if (currentNode.children.hasOwnProperty(segment)) {
+        currentNode = currentNode.children[segment];
+        continue;
+      }
+
+      // Try dynamic match
+      if (currentNode.children.hasOwnProperty('*')) {
+        const dynamicNode = currentNode.children['*'];
+        params[dynamicNode.paramName] = segment;
+        currentNode = dynamicNode;
+        continue;
+      }
+
+      // No matching route
+      return null;
+    }
+
+    // Retrieve the handler for the specified method
+    const handler = currentNode.handlers[method];
+    return { params, handler };
+  }
+
+  // Print the route tree for debugging
+  printTree(node = this.root, indentation = 0, dynamicParams = []) {
+    const indent = '  '.repeat(indentation);
+
+    for (const key in node.children) {
+      const childNode = node.children[key];
+      const isDynamic = key === '*';
+      const paramName = isDynamic ? childNode.paramName : null;
+
+      // Collect dynamic parameters
+      const currentDynamicParams = isDynamic
+        ? [...dynamicParams, paramName]
+        : dynamicParams;
+
+      // Display dynamic parameters or 'No'
+      const dynamicStr = isDynamic
+        ? currentDynamicParams.join(',')
+        : 'No';
+
+      console.log(`${indent}(${key}) Dynamic: ${dynamicStr}`);
+
+      // Print handlers if they exist
+      if (Object.keys(childNode.handlers).length > 0) {
+        const methods = Object.keys(childNode.handlers).join(', ');
+        console.log(`${indent}  Handlers: ${methods}`);
+      }
+
+      // Recursively print child nodes
+      this.printTree(childNode, indentation + 1, currentDynamicParams);
+    }
+  }
 }
 
-
-class RouteNode {
-constructor() {
-  this.childrenNodes = new Map(),
-  this.handler = null
-}
-
-handleRoute() {
-  // This method will be used to handle the route when this node is the end of a path.
-  // You can call the handler function here if it exists.
-}
-}
-
-
-const router = new Router();
-
-router.get("/", function handleGetBasePath(req, res) {
-  console.log("Hello from GET /");
-  res.end();
-});
-
-router.post("/", function handlePostBasePath(req, res) {
-  console.log("Hello from POST /");
-  res.end();
-});
 
 // Note: We're using an arrow function instead of a regular function now
 let server = http.createServer((req, res) => router.handleRequest(req, res));
