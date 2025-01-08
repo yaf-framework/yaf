@@ -1,100 +1,209 @@
 const { Router, run } = require("./lib");
-var cors = require('./lib/cors')
+const { InMemoryDatabase } = require("./lib/database");
+const bodyParser = require("body-parser");
+const cors = require("./lib/cors");
+const { generateUniqueId } = require("./lib/utils");
+
+// Initialize router and database
 const router = new Router();
+const db = new InMemoryDatabase();
 
-const middleware = [
-  (req, res, next) => {
-    console.log("req!");
-    next();
-  },
-  (req, res, next) => {
-    console.log("logged!");
-    next();
-  },
-];
+// Global Middleware Setup
+router.use(bodyParser.json());
+router.use(bodyParser.urlencoded({ extended: true }));
+router.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
-// Error-handling middleware
-router.useErrorHandler((err, req, res, next) => {
-  res.status(500).json({ error: err.message });
-});
-
-// Helper functions for route handlers
-function getUserList(req, res) {
-  res.json({ message: "User List" });
-}
-
-function showUserInfo(req, res) {
-  const userId = req.params.id;
-  res.status(200).json({ message: `User Info for ID: ${userId}` });
-}
-
-function teamsList(req, res) {
-  res.status(200).json({ teams: ["Team Red", "Team Blue"] });
-}
-
-function rootHandler(req, res) {
-  res.status(200).send("Hello World");
-}
-
-function downloadFile(req, res) {
-  res.download('./README.md', 'report.pdf');
-}
-
-function redirectUser(req, res) {
-  res.redirect('/login');
-}
-
-function sendError(req, res) {
-  res.status(500).send('Internal Server Error');
-}
-
-// Define individual routers
-const base_routes = new Router().get("/", rootHandler);
-const user_routes = new Router().get("/users", getUserList).get("/users/:id", showUserInfo);
-const team_routes = new Router().get("/teams", teamsList);
-
-// Merge routers into the main router
-const main_router = new Router();
-main_router.merge(user_routes);
-main_router.merge(team_routes);
-main_router.merge(base_routes);
-
-// Nest the main router under "/api/v1"
-const api_router = new Router();
-
-// Global middleware
-api_router.use((req, res, context, next) => {
-  context.user = { id: 1, name: "Furkan" };
-  console.log("LOGGING BEGAN!");
+// Logging Middleware
+router.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
   next();
 });
 
-api_router.use((req, res, context, next) => {
-  context.user = { id: 1, name: "Furkan" };
-  console.log("LOGGING BEGAN! 2");
-  next();
+// API Version Group
+router.group("/api/v1", [], () => {
+  // Test Routes
+  router.get("/test", (req, res) => {
+    res.json({ message: "Basic GET works!" });
+  });
+
+  router.post("/test-query", (req, res) => {
+    res.json({
+      message: "Query parameters work!",
+      query: req.query,
+      body: req.body,
+    });
+  });
+
+  // Transaction Demo Routes
+  router.group("/transactions", [], () => {
+    router.post("/demo", (req, res) => {
+      const transactionId = db.beginTransaction();
+      try {
+        // Perform some operations
+        const data = { id: generateUniqueId(), ...req.body };
+        db.set("tempData", data);
+
+        // Commit the transaction
+        db.commitTransaction(transactionId);
+        res.json({ message: "Transaction successful", data });
+      } catch (error) {
+        db.rollbackTransaction(transactionId);
+        res.status(500).json({ error: "Transaction failed" });
+      }
+    });
+  });
+
+  // Products Resource (Existing Routes)
+  router.group("/products", [], () => {
+    // Create product
+    router.post("/", (req, res) => {
+      const { name, price, description } = req.body;
+      if (!name || !price) {
+        return res.status(400).json({ error: "Name and price are required" });
+      }
+
+      const products = db.get("products") || [];
+      const newProduct = {
+        id: generateUniqueId(),
+        name,
+        price,
+        description,
+        createdAt: new Date().toISOString(),
+      };
+
+      products.push(newProduct);
+      db.set("products", products);
+      res.status(201).json(newProduct);
+    });
+
+    // Get all products with optional filtering
+    router.get("/", (req, res) => {
+      const products = db.get("products") || [];
+      const { minPrice, maxPrice } = req.query;
+
+      let filteredProducts = products;
+      if (minPrice || maxPrice) {
+        filteredProducts = products.filter((p) => {
+          return (!minPrice || p.price >= Number(minPrice)) && (!maxPrice || p.price <= Number(maxPrice));
+        });
+      }
+
+      res.json(filteredProducts);
+    });
+
+    // Get product by ID
+    router.get("/:id", (req, res) => {
+      const products = db.get("products") || [];
+      const product = products.find((p) => p.id === req.params.id);
+
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      res.json(product);
+    });
+
+    // Update product
+    router.put("/:id", (req, res) => {
+      const products = db.get("products") || [];
+      const index = products.findIndex((p) => p.id === req.params.id);
+
+      if (index === -1) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      products[index] = {
+        ...products[index],
+        ...req.body,
+        updatedAt: new Date().toISOString(),
+      };
+
+      db.set("products", products);
+      res.json(products[index]);
+    });
+
+    // Delete product
+    router.delete("/:id", (req, res) => {
+      const products = db.get("products") || [];
+      const filteredProducts = products.filter((p) => p.id !== req.params.id);
+
+      if (filteredProducts.length === products.length) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      db.set("products", filteredProducts);
+      res.status(204).end();
+    });
+  });
+
+  // Nested Routers (New Addition)
+  const authRouter = new Router();
+  const adminRouter = new Router();
+
+  // Auth Router (Nested under /api/v1/auth)
+  authRouter.post("/login", (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ error: "Username and password are required" });
+    }
+
+    // Simulate a login process
+    const token = generateUniqueId();
+    res.json({ message: "Login successful", token });
+  });
+
+  authRouter.post("/register", (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ error: "Username and password are required" });
+    }
+
+    // Simulate a registration process
+    const user = { id: generateUniqueId(), username, password };
+    res.status(201).json({ message: "Registration successful", user });
+  });
+
+  // Admin Router (Nested under /api/v1/admin)
+  adminRouter.get("/users", (req, res) => {
+    // Simulate fetching users (for admin only)
+    const users = [
+      { id: 1, username: "admin" },
+      { id: 2, username: "user1" },
+    ];
+    res.json(users);
+  });
+
+  adminRouter.post("/users", (req, res) => {
+    const { username } = req.body;
+    if (!username) {
+      return res.status(400).json({ error: "Username is required" });
+    }
+
+    // Simulate creating a new user
+    const newUser = { id: generateUniqueId(), username };
+    res.status(201).json({ message: "User created", user: newUser });
+  });
+
+  // Nest the routers
+  router.nest("/auth", authRouter); // Routes: /api/v1/auth/login, /api/v1/auth/register
+  router.nest("/admin", adminRouter); // Routes: /api/v1/admin/users, /api/v1/admin/users
 });
 
-api_router.nest("/api/v2", main_router);
-
-// Global CORS middleware
-api_router.use(cors({
-  origin: 'https://example.com',
-  methods: ['GET', 'POST'],
-  credentials: true
-}));
-// Route with CORS
-api_router.get('/data', (req, res) => {
-  res.json({ message: 'CORS is working!' });
+// Error handling middleware
+router.useErrorHandler((err, req, res) => {
+  console.error(`Error: ${err.message}`);
+  res.status(500).json({
+    error: "Internal Server Error",
+    message: err.message,
+    timestamp: new Date().toISOString(),
+  });
 });
 
-// Group routes with middleware
-api_router.group("/profile", middleware, () => {
-  api_router.get("/users", getUserList);
-  api_router.get("/downloadFile", downloadFile);
-  api_router.post("/teams", teamsList);
-  api_router.put("/teamstest", teamsList);
-});
-
-// Start the server with the nested router
-run(api_router, 3000);
+// Start the server
+const PORT = process.env.PORT || 3000;
+run(router, PORT);
