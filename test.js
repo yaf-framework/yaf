@@ -2,20 +2,19 @@ const { Router, run } = require("./lib");
 const { InMemoryDatabase } = require("./lib/database");
 const bodyParser = require("body-parser");
 const cors = require("./lib/cors");
-const { generateUniqueId } = require("./lib/utils");
 
 // Initialize router and database
 const router = new Router();
 const db = new InMemoryDatabase();
 
 // Global Middleware Setup
-router.use(bodyParser.json());
-router.use(bodyParser.urlencoded({ extended: true }));
+router.use(bodyParser.json()); // Parse JSON bodies
+router.use(bodyParser.urlencoded({ extended: true })); // Parse URL-encoded bodies
 router.use(
   cors({
-    origin: "*",
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    origin: "*", // Allow all origins
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"], // Allowed HTTP methods
+    allowedHeaders: ["Content-Type", "Authorization"], // Allowed headers
   })
 );
 
@@ -46,7 +45,7 @@ router.group("/api/v1", [], () => {
       const transactionId = db.beginTransaction();
       try {
         // Perform some operations
-        const data = { id: generateUniqueId(), ...req.body };
+        const data = { id: (db.get("tempData") || []).length + 1, ...req.body };
         db.set("tempData", data);
 
         // Commit the transaction
@@ -59,7 +58,7 @@ router.group("/api/v1", [], () => {
     });
   });
 
-  // Products Resource (Existing Routes)
+  // Products Resource
   router.group("/products", [], () => {
     // Create product
     router.post("/", (req, res) => {
@@ -70,7 +69,7 @@ router.group("/api/v1", [], () => {
 
       const products = db.get("products") || [];
       const newProduct = {
-        id: generateUniqueId(),
+        id: products.length + 1, // Generate ID based on length + 1
         name,
         price,
         description,
@@ -82,8 +81,7 @@ router.group("/api/v1", [], () => {
       res.status(201).json(newProduct);
     });
 
-    // Get all products with optional filtering
-    // Get all products with optional filtering
+    // Get all products
     router.get("/", (req, res) => {
       const products = db.get("products") || [];
       res.json(products);
@@ -92,7 +90,7 @@ router.group("/api/v1", [], () => {
     // Get product by ID
     router.get("/:id", (req, res) => {
       const products = db.get("products") || [];
-      const product = products.find((p) => p.id === req.params.id);
+      const product = products.find((p) => p.id === parseInt(req.params.id));
 
       if (!product) {
         return res.status(404).json({ error: "Product not found" });
@@ -103,8 +101,7 @@ router.group("/api/v1", [], () => {
     // Update product
     router.put("/:id", (req, res) => {
       const products = db.get("products") || [];
-      console.log("req.params", req.params);
-      const index = products.findIndex((p) => p.id === req.params.id);
+      const index = products.findIndex((p) => p.id === parseInt(req.params.id));
 
       if (index === -1) {
         return res.status(404).json({ error: "Product not found" });
@@ -123,7 +120,7 @@ router.group("/api/v1", [], () => {
     // Delete product
     router.delete("/:id", (req, res) => {
       const products = db.get("products") || [];
-      const filteredProducts = products.filter((p) => p.id !== req.params.id);
+      const filteredProducts = products.filter((p) => p.id !== parseInt(req.params.id));
 
       if (filteredProducts.length === products.length) {
         return res.status(404).json({ error: "Product not found" });
@@ -134,7 +131,7 @@ router.group("/api/v1", [], () => {
     });
   });
 
-  // Nested Routers (New Addition)
+  // Nested Routers
   const authRouter = new Router();
   const adminRouter = new Router();
 
@@ -146,7 +143,7 @@ router.group("/api/v1", [], () => {
     }
 
     // Simulate a login process
-    const token = generateUniqueId();
+    const token = (db.get("tokens") || []).length + 1; // Generate token based on length + 1
     res.json({ message: "Login successful", token });
   });
 
@@ -157,17 +154,17 @@ router.group("/api/v1", [], () => {
     }
 
     // Simulate a registration process
-    const user = { id: generateUniqueId(), username, password };
-    res.status(201).json({ message: "Registration successful", user });
+    const users = db.get("users") || [];
+    const newUser = { id: users.length + 1, username, password }; // Generate ID based on length + 1
+    users.push(newUser);
+    db.set("users", users);
+    res.status(201).json({ message: "Registration successful", user: newUser });
   });
 
   // Admin Router (Nested under /api/v1/admin)
   adminRouter.get("/users", (req, res) => {
     // Simulate fetching users (for admin only)
-    const users = [
-      { id: 1, username: "admin" },
-      { id: 2, username: "user1" },
-    ];
+    const users = db.get("users") || [];
     res.json(users);
   });
 
@@ -178,7 +175,10 @@ router.group("/api/v1", [], () => {
     }
 
     // Simulate creating a new user
-    const newUser = { id: generateUniqueId(), username };
+    const users = db.get("users") || [];
+    const newUser = { id: users.length + 1, username }; // Generate ID based on length + 1
+    users.push(newUser);
+    db.set("users", users);
     res.status(201).json({ message: "User created", user: newUser });
   });
 
@@ -203,3 +203,50 @@ run(router, PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
   console.log(`Test the API at http://localhost:${PORT}/api/v1/test`);
 });
+
+// GET /api/v1/test - Basic GET request.
+
+// POST /api/v1/test-query - Test query parameters and body parsing.
+// {
+//   "email": "john@example.com",
+//   "city": "New York"
+// }
+// POST /api/v1/transactions/demo - Test transactions.
+// {
+//   "item": "Laptop",
+//   "price": 1200
+// }
+// POST /api/v1/products - Create a product.
+// {
+//   "name": "Smartphone",
+//   "price": 599.99,
+//   "description": "A high-end smartphone with 128GB storage."
+// }
+// GET /api/v1/products - Fetch all products.
+
+// GET /api/v1/products/:id - Fetch a product by ID.
+// {
+//   "id": 1,
+//   "name": "Smartphone",
+//   "price": 599.99,
+//   "description": "A high-end smartphone with 128GB storage.",
+//   "createdAt": "2023-10-05T12:34:56.789Z"
+// }
+// PUT /api/v1/products/:id - Update a product.
+// {
+//   "price": 549.99,
+//   "description": "A high-end smartphone with 128GB storage and 5G support."
+// }
+// DELETE /api/v1/products/:id - Delete a product.
+
+// POST /api/v1/auth/login - Simulate login.
+// {
+//   "username": "john_doe",
+//   "password": "password123"
+// }
+// POST /api/v1/auth/register - Simulate registration.
+// {
+//   "username": "john_doe",
+//   "password": "password123"
+// }
+// GET /api/v1/admin/users - Fetch users (admin only).
