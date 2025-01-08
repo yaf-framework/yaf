@@ -54,7 +54,7 @@ router.group("/api/v1", [], () => {
         res.json({ message: "Transaction successful", data });
       } catch (error) {
         db.rollbackTransaction(transactionId);
-        res.status(500).json({ error: "Transaction failed" });
+        res.status(500).json({ error: "Transaction failed", message: error.message });
       }
     });
   });
@@ -83,18 +83,10 @@ router.group("/api/v1", [], () => {
     });
 
     // Get all products with optional filtering
+    // Get all products with optional filtering
     router.get("/", (req, res) => {
       const products = db.get("products") || [];
-      const { minPrice, maxPrice } = req.query;
-
-      let filteredProducts = products;
-      if (minPrice || maxPrice) {
-        filteredProducts = products.filter((p) => {
-          return (!minPrice || p.price >= Number(minPrice)) && (!maxPrice || p.price <= Number(maxPrice));
-        });
-      }
-
-      res.json(filteredProducts);
+      res.json(products);
     });
 
     // Get product by ID
@@ -111,6 +103,7 @@ router.group("/api/v1", [], () => {
     // Update product
     router.put("/:id", (req, res) => {
       const products = db.get("products") || [];
+      console.log("req.params", req.params);
       const index = products.findIndex((p) => p.id === req.params.id);
 
       if (index === -1) {
@@ -206,4 +199,7 @@ router.useErrorHandler((err, req, res) => {
 
 // Start the server
 const PORT = process.env.PORT || 3000;
-run(router, PORT);
+run(router, PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
+  console.log(`Test the API at http://localhost:${PORT}/api/v1/test`);
+});
