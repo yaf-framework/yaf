@@ -2,23 +2,52 @@ const { Router, run } = require("./lib");
 
 const router = new Router();
 
+// Global middleware
+router.use((req, res, next) => {
+  console.log("Global middleware executed"); // Debug log
+  next();
+});
+
+router.use((req, res, next) => {
+  console.log("NEXT MIDDLEWARE USED")
+  next()
+})
+
+// Routes
+router.get("/users", (req, res) => {
+  console.log("Route handler for /users executed"); // Debug log
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ users: ["Furkan", "Turkoglu"] }));
+});
+
+// Error-handling middleware
+router.useErrorHandler((err, req, res, next) => {
+  console.error("Error-handling middleware executed:", err.message); // Debug log
+  res.writeHead(500, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ error: err.message }));
+});
+
 // Helper functions for route handlers
 function getUserList(req, res) {
+  console.log("getUserList handler executed"); // Debug log
   res.writeHead(200, { "Content-Type": "application/json" });
-  res.end(JSON.stringify({ users: ["Ishtmeet", "Jon"] }));
+  res.end(JSON.stringify({ users: ["Furkan", "Turkoglu"] }));
 }
 
 function showUserInfo(req, res) {
+  console.log("showUserInfo handler executed"); // Debug log
   res.writeHead(200, { "Content-Type": "application/json" });
   res.end(JSON.stringify({ user: req.params.id }));
 }
 
 function teamsList(req, res) {
+  console.log("teamsList handler executed"); // Debug log
   res.writeHead(200, { "Content-Type": "application/json" });
   res.end(JSON.stringify({ teams: ["Team Red", "Team Blue"] }));
 }
 
 function rootHandler(req, res) {
+  console.log("rootHandler executed"); // Debug log
   res.writeHead(200, { "Content-Type": "text/plain" });
   res.end("Hello World");
 }
@@ -104,4 +133,4 @@ nestedTestCases.forEach(({ path, method, description }) => {
 });
 
 // Start the server with the nested router
-run(api_router, 3000);
+run(router, 3000);
