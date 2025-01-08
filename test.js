@@ -1,5 +1,5 @@
 const { Router, run } = require("./lib");
-
+var cors = require('./lib/cors')
 const router = new Router();
 
 const middleware = [
@@ -78,12 +78,11 @@ api_router.use((req, res, context, next) => {
 api_router.nest("/api/v2", main_router);
 
 // Global CORS middleware
-api_router.use(api_router.cors({
+api_router.use(cors({
   origin: 'https://example.com',
   methods: ['GET', 'POST'],
-  credentials: true,
+  credentials: true
 }));
-
 // Route with CORS
 api_router.get('/data', (req, res) => {
   res.json({ message: 'CORS is working!' });
