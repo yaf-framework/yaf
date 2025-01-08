@@ -4,21 +4,7 @@ const router = new Router();
 
 
 
-// Route-specific middleware
-function authMiddleware(req, res, next) {
-  if (req.headers.authorization) {
-    next();
-  } else {
-    res.writeHead(401, { "Content-Type": "text/plain" });
-    res.end("Unauthorized");
-  }
-}
 
-// Routes
-router.get("/users", authMiddleware, (req, res) => {
-  res.writeHead(200, { "Content-Type": "application/json" });
-  res.end(JSON.stringify({ users: ["Furkan", "Turkoglu"] }));
-});
 
 // Error-handling middleware
 router.useErrorHandler((err, req, res, next) => {
@@ -29,14 +15,14 @@ router.useErrorHandler((err, req, res, next) => {
 
 
 // Helper functions for route handlers
-function getUserList(req, res) {
+function getUserList(req, res,context) {
   res.writeHead(200, { "Content-Type": "application/json" });
-  res.end(JSON.stringify({ users: ["Furkan", "Turkoglu"] }));
+  res.end(`Hello, ${context.user.name}`);
 }
 
-function showUserInfo(req, res) {
+function showUserInfo(req, res,context) {
   res.writeHead(200, { "Content-Type": "application/json" });
-  res.end(JSON.stringify({ user: req.params.id }));
+  res.end(`Hello, ${context.user.name}`);
 }
 
 function teamsList(req, res) {
@@ -64,10 +50,12 @@ main_router.merge(base_routes);
 const api_router = new Router();
 
 // Global middleware
-api_router.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+api_router.use((req, res,context, next) => {
+  context.user = { id: 1, name: "Furkan" };
   next();
 });
+
+
 
 api_router.nest("/api/v1", main_router);
 
