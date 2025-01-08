@@ -3,8 +3,18 @@ const { Router, run } = require("./lib");
 const router = new Router();
 
 
+const authMiddleware = [
+  (req, res,  next) => {  // Added context parameter
+   
+    console.log("req!");
+    next();
+  },
+  (req, res,  next) => {  // Added context parameter
 
-
+    console.log("logged!");
+    next();
+  }
+];
 
 // Error-handling middleware
 router.useErrorHandler((err, req, res, next) => {
@@ -15,14 +25,14 @@ router.useErrorHandler((err, req, res, next) => {
 
 
 // Helper functions for route handlers
-function getUserList(req, res,context) {
+function getUserList(req, res) {
   res.writeHead(200, { "Content-Type": "application/json" });
-  res.end(`Hello, ${context.user.name}`);
+  res.end(`Hello`);
 }
 
-function showUserInfo(req, res,context) {
+function showUserInfo(req, res,) {
   res.writeHead(200, { "Content-Type": "application/json" });
-  res.end(`Hello, ${context.user.name}`);
+  res.end(`Hello,`);
 }
 
 function teamsList(req, res) {
@@ -35,29 +45,37 @@ function rootHandler(req, res) {
   res.end("Hello World");
 }
 
-// Define individual routers
-const base_routes = new Router().get("/", rootHandler);
-const user_routes = new Router().get("/users", getUserList).get("/users/:id", showUserInfo);
-const team_routes = new Router().get("/teams", teamsList);
 
-// Merge routers into the main router
-const main_router = new Router();
-main_router.merge(user_routes);
-main_router.merge(team_routes);
-main_router.merge(base_routes);
-
-// Nest the main router under "/api/v1"
-const api_router = new Router();
-
-// Global middleware
-api_router.use((req, res,context, next) => {
-  context.user = { id: 1, name: "Furkan" };
-  next();
+router.group("/profile", authMiddleware, () => {
+  router.get("/users", getUserList);
+  router.post("/teams", teamsList);
 });
 
 
+// // Define individual routers
+// const base_routes = new Router().get("/", rootHandler);
+// const user_routes = new Router().get("/users", getUserList).get("/users/:id", showUserInfo);
+// const team_routes = new Router().get("/teams", teamsList);
 
-api_router.nest("/api/v1", main_router);
+// // Merge routers into the main router
+// const main_router = new Router();
+// main_router.merge(user_routes);
+// main_router.merge(team_routes);
+// main_router.merge(base_routes);
+
+// // Nest the main router under "/api/v1"
+// const api_router = new Router();
+
+// // Global middleware
+// api_router.use((req, res,context, next) => {
+//   context.user = { id: 1, name: "Furkan" };
+//   console.log("asdad")
+//   next();
+// });
+
+
+
+// api_router.nest("/api/v1", main_router);
 
 // Test cases for non-nested routes (main_router)
 const nonNestedTestCases = [
@@ -125,4 +143,4 @@ const nestedTestCases = [
 // });
 
 // Start the server with the nested router
-run(api_router, 3000);
+run(router, 3000);
