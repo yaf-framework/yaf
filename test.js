@@ -21,9 +21,9 @@ router.useErrorHandler((err, req, res, next) => {
 
 // Helper functions for route handlers
 function getUserList(req, res) {
-  res.status(200).json({ message: "User List" });
-}
+  res.json({ message: "User List" })
 
+}
 function showUserInfo(req, res) {
   const userId = req.params.id;
   res.status(200).json({ message: `User Info for ID: ${userId}` });
@@ -35,6 +35,18 @@ function teamsList(req, res) {
 
 function rootHandler(req, res) {
   res.status(200).send("Hello World");
+}
+
+function downloadFile(req, res) {
+  res.download('./README.md', 'report.pdf');
+}
+
+function redirectUser(req, res) {
+  res.redirect('/login');
+}
+
+function sendError(req, res) {
+  res.status(500).send('Internal Server Error');
 }
 
 
@@ -73,6 +85,7 @@ main_router.merge(team_routes);
 // // Group routes with middleware
 api_router.group("/profile", middleware, () => {
   api_router.get("/users", getUserList);
+  api_router.get("/downloadFile", downloadFile)
   api_router.post("/teams", teamsList);
   api_router.put("/teamstest", teamsList);
  
