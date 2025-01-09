@@ -166,7 +166,3 @@ Veli Furkan TÜRKOĞLU
 
 ---
 
-*Built with precision and expertise for modern web development.*
-
-Citations:
-[1] https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/31127038/cc065526-d22d-4e57-b046-d8f5c65bffae/paste.txt
