@@ -90,7 +90,7 @@ run(router, 3000, () => {
 
 ### **Router**
 
-- **`new Router()`**: Create a new router instance.
+- **`new Yaf()`**: Create a new router instance.
 - **`router.get(path, ...handlers)`**: Register a GET route.
 - **`router.post(path, ...handlers)`**: Register a POST route.
 - **`router.put(path, ...handlers)`**: Register a PUT route.
