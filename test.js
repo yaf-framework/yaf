@@ -1,4 +1,4 @@
-const { Router, run } = require("./lib");
+const { Yaf, run } = require("./lib");
 // const bodyParser = require("body-parser");
 const jsonBodyParser = require("./lib/body-parser")
 const cors = require("./lib/cors");
@@ -6,7 +6,7 @@ const pgp = require('pg-promise')();
 const postgre = pgp('postgresql://neondb_owner:tsp4jVZylzk5@ep-autumn-scene-a2u1uwrp.eu-central-1.aws.neon.tech/neondb?sslmode=require'); // Replace with your Neon Tech PostgreSQL connection string
 
 // Initialize router
-const router = new Router();
+const router = new Yaf();
 
 // Function to create tables if they don't exist
 async function createTables() {
