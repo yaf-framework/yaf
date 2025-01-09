@@ -1,12 +1,33 @@
 {
-  "name": "node",
-  "version": "1.0.0",
-  "main": "index.js",
+    "name": "yaf-framework",
+    "version": "1.0.0",
+    "main": "lib/index.js",
+    "files": [
+      "lib/",
+      "global.js",
+      "README.md"
+    ]
+  ,
+  
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
   },
-  "author": "",
+  "keywords": [
+    "node",
+    "framework",
+    "web",
+    "router",
+    "middleware"
+  ],
+  "author": "Veli Furkan TÜRKOĞLU",
   "license": "ISC",
-  "description": ""
-
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/furkancodes/yaf"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/my-node-framework/issues"
+  },
+  "homepage": "https://yaf.velifurkanturkoglu.me"
 }
