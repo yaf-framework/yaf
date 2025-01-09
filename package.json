@@ -1,6 +1,6 @@
 {
     "name": "yaf-framework",
-    "version": "1.0.0",
+    "version": "1.0.3",
     "main": "lib/index.js",
     "exports": {
         ".": {
@@ -24,11 +24,11 @@
             "default": "./lib/router.js"
         }
     },
-    "files": [
-        "lib/",
-        "global.js",
-        "README.md"
-    ],
+  "files": [
+    "lib/",
+    "global.js",
+    "README.md"
+],
     "scripts": {
         "test": "node test.js",
         "start": "node lib/index.js",

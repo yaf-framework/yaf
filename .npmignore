@@ -1,5 +1,36 @@
+# Test files
 test.js
-.vscode/
-test-yaf/
+test/
+*.test.js
+__tests__/
+coverage/
+
+# Development files
+.git/
 .gitignore
-test.js
+.npmignore
+.eslintrc
+.prettierrc
+.editorconfig
+.vscode/
+.idea/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Dependencies
+node_modules/
+
+# Other unnecessary files
+docs/
+examples/
+*.log
+*.pid
+*.seed
+*.pid.lock
