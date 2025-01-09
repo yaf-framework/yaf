@@ -1,15 +1,39 @@
 {
     "name": "yaf-framework",
-    "version": "1.0.2",
+    "version": "1.0.0",
     "main": "lib/index.js",
+    "exports": {
+        ".": {
+            "require": "./lib/index.js",
+            "default": "./lib/index.js"
+        },
+        "./database": {
+            "require": "./lib/database.js",
+            "default": "./lib/database.js"
+        },
+        "./cors": {
+            "require": "./lib/cors.js",
+            "default": "./lib/cors.js"
+        },
+        "./body-parser": {
+            "require": "./lib/body-parser.js",
+            "default": "./lib/body-parser.js"
+        },
+        "./router": {
+            "require": "./lib/router.js",
+            "default": "./lib/router.js"
+        }
+    },
     "files": [
         "lib/",
         "global.js",
         "README.md"
     ],
     "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1",
-        "start": "node index.js"
+        "test": "node test.js",
+        "start": "node lib/index.js",
+        "prepare": "npm run test",
+        "prepublishOnly": "npm test"
     },
     "keywords": [
         "node",
@@ -18,6 +42,9 @@
         "router",
         "middleware"
     ],
+    "engines": {
+        "node": ">=14.0.0"
+    },
     "author": "Veli Furkan TÜRKOĞLU",
     "license": "ISC",
     "repository": {
