@@ -1,8 +1,9 @@
 const { Router, run } = require("./lib");
-const bodyParser = require("body-parser");
+// const bodyParser = require("body-parser");
+const jsonBodyParser = require("./lib/body-parser")
 const cors = require("./lib/cors");
 const pgp = require('pg-promise')();
-const postgre = pgp('ADD POSTGRES URL'); // Replace with your Neon Tech PostgreSQL connection string
+const postgre = pgp('postgresql://neondb_owner:tsp4jVZylzk5@ep-autumn-scene-a2u1uwrp.eu-central-1.aws.neon.tech/neondb?sslmode=require'); // Replace with your Neon Tech PostgreSQL connection string
 
 // Initialize router
 const router = new Router();
@@ -50,8 +51,9 @@ async function createTables() {
 createTables();
 
 // Global Middleware Setup
-router.use(bodyParser.json()); // Parse JSON bodies
-router.use(bodyParser.urlencoded({ extended: true })); // Parse URL-encoded bodies
+router.use(jsonBodyParser({ limit: '1mb', strict: true }));
+
+// router.use(bodyParser.urlencoded({ extended: true })); // Parse URL-encoded bodies
 router.use(
   cors({
     origin: "*", // Allow all origins
