@@ -39,7 +39,7 @@ Welcome to YAF, where we're not trying to replace Express.js, we're just trying 
 
 ---
 
-## Installation 💾 NOT ADDED YET
+## Installation 💾
 
 ```bash
 npm install yaf-framework
