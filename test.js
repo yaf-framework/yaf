@@ -1,11 +1,53 @@
 const { Router, run } = require("./lib");
-const { InMemoryDatabase } = require("./lib/database");
 const bodyParser = require("body-parser");
 const cors = require("./lib/cors");
+const pgp = require('pg-promise')();
+const postgre = pgp('ADD POSTGRES URL'); // Replace with your Neon Tech PostgreSQL connection string
 
-// Initialize router and database
+// Initialize router
 const router = new Router();
-const db = new InMemoryDatabase();
+
+// Function to create tables if they don't exist
+async function createTables() {
+  try {
+    await postgre.none(`
+      CREATE TABLE IF NOT EXISTS products (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        price NUMERIC NOT NULL,
+        description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS tokens (
+        id SERIAL PRIMARY KEY,
+        user_id INT REFERENCES users(id) ON DELETE CASCADE,
+        token TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS tempData (
+        id SERIAL PRIMARY KEY,
+        data JSONB,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log("Tables created or already exist.");
+  } catch (error) {
+    console.error("Failed to create tables:", error);
+  }
+}
+
+// Call the function to create tables when the server starts
+createTables();
 
 // Global Middleware Setup
 router.use(bodyParser.json()); // Parse JSON bodies
@@ -41,93 +83,89 @@ router.group("/api/v1", [], () => {
 
   // Transaction Demo Routes
   router.group("/transactions", [], () => {
-    router.post("/demo", (req, res) => {
-      const transactionId = db.beginTransaction();
-      try {
-        // Perform some operations
-        const data = { id: (db.get("tempData") || []).length + 1, ...req.body };
-        db.set("tempData", data);
+    router.post("/demo", async (req, res) => {
+      const transaction = await postgre.tx(async (t) => {
+        try {
+          // Perform some operations
+          const data = { ...req.body };
+          await t.none('INSERT INTO tempData(data) VALUES($1)', [data]);
 
-        // Commit the transaction
-        db.commitTransaction(transactionId);
-        res.json({ message: "Transaction successful", data });
-      } catch (error) {
-        db.rollbackTransaction(transactionId);
-        res.status(500).json({ error: "Transaction failed", message: error.message });
-      }
+          // Commit the transaction
+          return { message: "Transaction successful", data };
+        } catch (error) {
+          throw error;
+        }
+      });
+
+      res.json(transaction);
     });
   });
 
   // Products Resource
   router.group("/products", [], () => {
     // Create product
-    router.post("/", (req, res) => {
+    router.post("/", async (req, res) => {
       const { name, price, description } = req.body;
       if (!name || !price) {
         return res.status(400).json({ error: "Name and price are required" });
       }
 
-      const products = db.get("products") || [];
-      const newProduct = {
-        id: products.length + 1, // Generate ID based on length + 1
-        name,
-        price,
-        description,
-        createdAt: new Date().toISOString(),
-      };
-
-      products.push(newProduct);
-      db.set("products", products);
-      res.status(201).json(newProduct);
+      try {
+        const newProduct = await postgre.one(
+          'INSERT INTO products(name, price, description, created_at) VALUES($1, $2, $3, $4) RETURNING *',
+          [name, price, description, new Date().toISOString()]
+        );
+        res.status(201).json(newProduct);
+      } catch (error) {
+        res.status(500).json({ error: "Failed to create product", message: error.message });
+      }
     });
 
     // Get all products
-    router.get("/", (req, res) => {
-      const products = db.get("products") || [];
-      res.json(products);
+    router.get("/", async (req, res) => {
+      try {
+        const products = await postgre.any('SELECT * FROM products');
+        res.json(products);
+      } catch (error) {
+        res.status(500).json({ error: "Failed to fetch products", message: error.message });
+      }
     });
 
     // Get product by ID
-    router.get("/:id", (req, res) => {
-      const products = db.get("products") || [];
-      const product = products.find((p) => p.id === parseInt(req.params.id));
-
-      if (!product) {
-        return res.status(404).json({ error: "Product not found" });
+    router.get("/:id", async (req, res) => {
+      try {
+        const product = await postgre.oneOrNone('SELECT * FROM products WHERE id = $1', [req.params.id]);
+        if (!product) {
+          return res.status(404).json({ error: "Product not found" });
+        }
+        res.json(product);
+      } catch (error) {
+        res.status(500).json({ error: "Failed to fetch product", message: error.message });
       }
-      res.json(product);
     });
 
     // Update product
-    router.put("/:id", (req, res) => {
-      const products = db.get("products") || [];
-      const index = products.findIndex((p) => p.id === parseInt(req.params.id));
-
-      if (index === -1) {
-        return res.status(404).json({ error: "Product not found" });
+    router.put("/:id", async (req, res) => {
+      const { name, price, description } = req.body;
+      try {
+        const updatedProduct = await postgre.one(
+          'UPDATE products SET name = $1, price = $2, description = $3, updated_at = $4 WHERE id = $5 RETURNING *',
+          [name, price, description, new Date().toISOString(), req.params.id]
+        );
+        res.json(updatedProduct);
+      } catch (error) {
+        res.status(500).json({ error: "Failed to update product", message: error.message });
       }
-
-      products[index] = {
-        ...products[index],
-        ...req.body,
-        updatedAt: new Date().toISOString(),
-      };
-
-      db.set("products", products);
-      res.json(products[index]);
     });
 
     // Delete product
-    router.delete("/:id", (req, res) => {
-      const products = db.get("products") || [];
-      const filteredProducts = products.filter((p) => p.id !== parseInt(req.params.id));
-
-      if (filteredProducts.length === products.length) {
-        return res.status(404).json({ error: "Product not found" });
+    router.delete("/:id", async (req, res) => {
+      try {
+        await postgre.none('DELETE FROM products WHERE id = $1', [req.params.id]);
+        res.status(204).end();
+      } catch (error) {
+        res.status(500).json({ error: "Failed to delete product", message: error.message });
       }
-
-      db.set("products", filteredProducts);
-      res.status(204).end();
     });
   });
 
@@ -136,50 +174,68 @@ router.group("/api/v1", [], () => {
   const adminRouter = new Router();
 
   // Auth Router (Nested under /api/v1/auth)
-  authRouter.post("/login", (req, res) => {
+  authRouter.post("/login", async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) {
       return res.status(400).json({ error: "Username and password are required" });
     }
 
-    // Simulate a login process
-    const token = (db.get("tokens") || []).length + 1; // Generate token based on length + 1
-    res.json({ message: "Login successful", token });
+    try {
+      const user = await postgre.oneOrNone('SELECT * FROM users WHERE username = $1 AND password = $2', [username, password]);
+      if (!user) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+
+      // Simulate a login process
+      const token = (await postgre.one('SELECT COUNT(*) FROM tokens')).count + 1; // Generate token based on count + 1
+      res.json({ message: "Login successful", token });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to login", message: error.message });
+    }
   });
 
-  authRouter.post("/register", (req, res) => {
+  authRouter.post("/register", async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) {
       return res.status(400).json({ error: "Username and password are required" });
     }
 
-    // Simulate a registration process
-    const users = db.get("users") || [];
-    const newUser = { id: users.length + 1, username, password }; // Generate ID based on length + 1
-    users.push(newUser);
-    db.set("users", users);
-    res.status(201).json({ message: "Registration successful", user: newUser });
+    try {
+      const newUser = await postgre.one(
+        'INSERT INTO users(username, password) VALUES($1, $2) RETURNING *',
+        [username, password]
+      );
+      res.status(201).json({ message: "Registration successful", user: newUser });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to register", message: error.message });
+    }
   });
 
   // Admin Router (Nested under /api/v1/admin)
-  adminRouter.get("/users", (req, res) => {
-    // Simulate fetching users (for admin only)
-    const users = db.get("users") || [];
-    res.json(users);
+  adminRouter.get("/users", async (req, res) => {
+    try {
+      const users = await postgre.any('SELECT * FROM users');
+      res.json(users);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch users", message: error.message });
+    }
   });
 
-  adminRouter.post("/users", (req, res) => {
+  adminRouter.post("/users", async (req, res) => {
     const { username } = req.body;
     if (!username) {
       return res.status(400).json({ error: "Username is required" });
     }
 
-    // Simulate creating a new user
-    const users = db.get("users") || [];
-    const newUser = { id: users.length + 1, username }; // Generate ID based on length + 1
-    users.push(newUser);
-    db.set("users", users);
-    res.status(201).json({ message: "User created", user: newUser });
+    try {
+      const newUser = await postgre.one(
+        'INSERT INTO users(username) VALUES($1) RETURNING *',
+        [username]
+      );
+      res.status(201).json({ message: "User created", user: newUser });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create user", message: error.message });
+    }
   });
 
   // Nest the routers
@@ -203,50 +259,3 @@ run(router, PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
   console.log(`Test the API at http://localhost:${PORT}/api/v1/test`);
 });
-
-// GET /api/v1/test - Basic GET request.
-
-// POST /api/v1/test-query - Test query parameters and body parsing.
-// {
-//   "email": "john@example.com",
-//   "city": "New York"
-// }
-// POST /api/v1/transactions/demo - Test transactions.
-// {
-//   "item": "Laptop",
-//   "price": 1200
-// }
-// POST /api/v1/products - Create a product.
-// {
-//   "name": "Smartphone",
-//   "price": 599.99,
-//   "description": "A high-end smartphone with 128GB storage."
-// }
-// GET /api/v1/products - Fetch all products.
-
-// GET /api/v1/products/:id - Fetch a product by ID.
-// {
-//   "id": 1,
-//   "name": "Smartphone",
-//   "price": 599.99,
-//   "description": "A high-end smartphone with 128GB storage.",
-//   "createdAt": "2023-10-05T12:34:56.789Z"
-// }
-// PUT /api/v1/products/:id - Update a product.
-// {
-//   "price": 549.99,
-//   "description": "A high-end smartphone with 128GB storage and 5G support."
-// }
-// DELETE /api/v1/products/:id - Delete a product.
-
-// POST /api/v1/auth/login - Simulate login.
-// {
-//   "username": "john_doe",
-//   "password": "password123"
-// }
-// POST /api/v1/auth/register - Simulate registration.
-// {
-//   "username": "john_doe",
-//   "password": "password123"
-// }
-// GET /api/v1/admin/users - Fetch users (admin only).
