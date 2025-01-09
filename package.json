@@ -7,10 +7,6 @@
   },
   "author": "",
   "license": "ISC",
-  "description": "",
-  "dependencies": {
-    "body-parser": "^1.20.3",
-    "pg": "^8.13.1",
-    "pg-promise": "^11.10.2"
-  }
+  "description": ""
+
 }
