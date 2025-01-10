@@ -1,28 +1,13 @@
 {
     "name": "yaf-framework",
-    "version": "1.0.3",
+    "version": "1.0.6",
     "main": "lib/index.js",
     "exports": {
-        ".": {
-            "require": "./lib/index.js",
-            "default": "./lib/index.js"
-        },
-        "./database": {
-            "require": "./lib/database.js",
-            "default": "./lib/database.js"
-        },
-        "./cors": {
-            "require": "./lib/cors.js",
-            "default": "./lib/cors.js"
-        },
-        "./body-parser": {
-            "require": "./lib/body-parser.js",
-            "default": "./lib/body-parser.js"
-        },
-        "./router": {
-            "require": "./lib/router.js",
-            "default": "./lib/router.js"
-        }
+        ".": "./lib/index.js",
+        "./body-parser": "./lib/body-parser.js",
+        "./cors": "./lib/cors.js",
+        "./database": "./lib/database.js",
+        "./router": "./lib/router.js"
     },
   "files": [
     "lib/",
