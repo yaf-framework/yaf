@@ -1,43 +1,43 @@
 {
-    "name": "yaf-framework",
-    "version": "1.0.7",
-    "main": "lib/index.js",
-    "exports": {
-        ".": "./lib/index.js",
-        "./body-parser": "./lib/body-parser.js",
-        "./cors": "./lib/cors.js",
-        "./database": "./lib/database.js",
-        "./router": "./lib/router.js"
-    },
+  "name": "yaf-framework",
+  "version": "1.0.8",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./body-parser": "./lib/body-parser.js",
+    "./cors": "./lib/cors.js",
+    "./database": "./lib/database.js",
+    "./router": "./lib/router.js"
+  },
   "files": [
     "lib/",
     "global.js",
     "README.md"
-],
-    "scripts": {
-        "test": "node test.js",
-        "start": "node lib/index.js",
-        "prepare": "npm run test",
-        "prepublishOnly": "npm test"
-    },
-    "keywords": [
-        "node",
-        "framework",
-        "web",
-        "router",
-        "middleware"
-    ],
-    "engines": {
-        "node": ">=14.0.0"
-    },
-    "author": "Veli Furkan TÜRKOĞLU",
-    "license": "ISC",
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/furkancodes/yaf"
-    },
-    "bugs": {
-        "url": "https://github.com/yourusername/my-node-framework/issues"
-    },
-    "homepage": "https://yaf.velifurkanturkoglu.me"
+  ],
+  "scripts": {
+    "test": "node test.js",
+    "start": "node lib/index.js",
+    "prepare": "npm run test",
+    "prepublishOnly": "npm test"
+  },
+  "keywords": [
+    "node",
+    "framework",
+    "web",
+    "router",
+    "middleware"
+  ],
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "author": "Veli Furkan TÜRKOĞLU",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/furkancodes/yaf"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/my-node-framework/issues"
+  },
+  "homepage": "https://yaf.velifurkanturkoglu.me"
 }
